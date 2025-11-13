@@ -246,10 +246,12 @@ if __name__ == "__main__":
     }
 
     # --- 1. Decision Tree Experiment ---
+    print("\n--- Running Decision Tree Experiment ---")
     dt_classifier = DecisionTreeClassifier(**best_dt_params)
     dt_results = run_experiment(X_train, X_test, y_train, y_test, dt_classifier)
 
     # --- 2. Random Forest Experiment ---
+    print("\n--- Running Random Forest Experiment ---")
     rf_classifier = RandomForestClassifier(**best_rf_params)
     rf_results = run_experiment(X_train, X_test, y_train, y_test, rf_classifier)
 
