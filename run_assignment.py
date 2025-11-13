@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from decision_tree import DecisionTreeClassifier
 from random_forest import RandomForestClassifier
+from itertools import product
 
 # --- Performance Metrics Helper ---
 
@@ -24,6 +25,77 @@ def calculate_accuracy(y_true, y_pred):
     """
     return accuracy_score(y_true, y_pred)
 
+# --- Hyperparameter Tuning Function ---
+def tune_model(model_cls, param_grid, X_train, y_train, X_val, y_val, model_name="model"):
+    history = []  # <-- list of {"params":..., "acc":...}
+
+    keys = list(param_grid.keys())
+    best_params = None
+    best_acc = -1
+
+    for values in product(*param_grid.values()):
+        params = dict(zip(keys, values))
+
+        model = model_cls(**params)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
+        acc = calculate_accuracy(y_val, y_pred)
+
+        # record
+        history.append({"params": params, "acc": acc})
+
+        print(f"{model_name} params={params} -> val acc={acc:.4f}")
+
+        if acc > best_acc:
+            best_acc = acc
+            best_params = params
+
+    print(f"\nBEST {model_name}: {best_params}  ACC={best_acc:.4f}\n")
+
+    return best_params, history
+
+
+# --- Hyperparameter Impact Plotting Function, Exclusively for Q1 ---
+def plot_hyperparameter_impact(history, model_name="Model"):
+    """
+    history = list of {"params": {...}, "acc": float}
+    Saves PNG: hyperparameter_impact_<modelname>.png
+    """
+
+    # Convert history to dataframe
+    rows = []
+    for entry in history:
+        row = entry["params"].copy()
+        row["accuracy"] = entry["acc"]
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+    df_sorted = df.sort_values("accuracy", ascending=False)
+
+    # Build labels for each bar (multiline)
+    labels = df_sorted.apply(
+        lambda r: "\n".join([f"{k}={r[k]}" for k in r.index if k != "accuracy"]),
+        axis=1
+    )
+
+    # Create plot
+    plt.figure(figsize=(12, 6))
+    plt.bar(range(len(df_sorted)), df_sorted["accuracy"])
+    plt.xticks(range(len(df_sorted)), labels, rotation=70, ha="right")
+
+    plt.title(f"Hyperparameter Impact on Validation Accuracy ({model_name})")
+    plt.ylabel("Validation Accuracy")
+    plt.tight_layout()
+
+    # --- SAVE PNG ---
+    filename = f"hyperparameter_impact_{model_name.replace(' ', '_').lower()}.png"
+    plt.savefig(filename, dpi=300)
+    print(f"[Saved] {filename}")
+
+    # Show it
+    plt.show()
+
+# --- Experiment Execution Function ---
 def run_experiment(X_train, X_test, y_train, y_test, model):
     """
     Trains and tests a model, measuring execution time and performance.
@@ -109,30 +181,51 @@ if __name__ == "__main__":
         random_state=42
     )
     
-    # Use 70/30 split, standard practice.
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # Hyperparameter tuning can be done here if desired
+    X_train_full, X_test, y_train_full, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # Validation split for hyperparameter tuning
+    X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.2, random_state=42)
     
     print(f"Training Samples: {len(X_train)}")
     print(f"Test Samples: {len(X_test)}\n")
     
     # --- Model Configuration ---
-    # Default parameters chosen for a quick, representative run.
-    # These should be tuned as required by the assignment (Report Q1)
-    DT_PARAMS = {'max_depth': 10, 'min_node': 5}
-    RF_PARAMS = {
-        'n_trees': 50, 
-        'data_frac': 0.8, 
-        'feature_subcount': int(np.sqrt(X.shape[1])), # Standard rule of thumb: sqrt(n_features)
-        'max_depth': 15, 
-        'min_node': 5
-    }
+    # These are set via hyperparameter tuning
+    dt_param_grid = {
+        "max_depth": [5, 10, 15],
+        "min_node": [2, 5, 10]}
+
+    best_dt_params, dt_history = tune_model(
+        DecisionTreeClassifier,
+        dt_param_grid,
+        X_train, y_train,
+        X_val, y_val,
+        model_name="Decision Tree")
+
+    # Random Forest search space
+    n_features = X.shape[1]
+
+    rf_param_grid = {
+        "n_trees": [20, 50, 100],
+        "data_frac": [0.6, 0.8],
+        "feature_subcount": [int(np.sqrt(n_features)), n_features // 2],
+        "max_depth": [10, 15, 20],
+        "min_node": [2, 5, 10]}
+
+    best_rf_params, rf_history = tune_model(
+        RandomForestClassifier,
+        rf_param_grid,
+        X_train, y_train,
+        X_val, y_val,
+        model_name="Random Forest")
 
     # --- 1. Decision Tree Experiment ---
-    dt_classifier = DecisionTreeClassifier(**DT_PARAMS)
+    dt_classifier = DecisionTreeClassifier(**best_dt_params)
     dt_results = run_experiment(X_train, X_test, y_train, y_test, dt_classifier)
 
     # --- 2. Random Forest Experiment ---
-    rf_classifier = RandomForestClassifier(**RF_PARAMS)
+    rf_classifier = RandomForestClassifier(**best_rf_params)
     rf_results = run_experiment(X_train, X_test, y_train, y_test, rf_classifier)
 
     # --- Results Summary (Report Q2) ---
@@ -179,4 +272,7 @@ if __name__ == "__main__":
     print("\nHint for Report Q2.d: Review 'confusion_matrix.png' for off-diagonal elements (misclassifications).")
     print("Use the IoT device names from 'list_of_devices.txt' (not provided) to explain WHY (e.g., two devices have similar traffic patterns).")
     
+    plot_hyperparameter_impact(dt_history, "Decision Tree")
+    plot_hyperparameter_impact(rf_history, "Random Forest")
+
     print("\nExecution complete. Check for the generated .png files for your report.")
