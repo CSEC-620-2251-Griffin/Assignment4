@@ -34,7 +34,7 @@ python run_assignment.py
 
 The script will:
 
-1. Load the synthetic dataset.
+1. Load the dataset present in iot_data.
 
 2. Train the custom `DecisionTreeClassifier`.
 
@@ -46,7 +46,4 @@ The script will:
 
 ## Hyperparameter Tuning
 
-The parameters for both models are defined in `run_assignment.py` under `DT_PARAMS` and `RF_PARAMS`. To complete the Report Q1 requirement, you will need to modify these parameters and run experiments to observe the impact on performance.
-
-Example parameters in run_assignment.py
-DT_PARAMS = {'max_depth': 10, 'min_node': 5} RF_PARAMS = { 'n_trees': 50, 'data_frac': 0.8, 'feature_subcount': int(np.sqrt(X.shape[1])), 'max_depth': 15, 'min_node': 5 }
+There are lines commented out present within run_assignment.py that handle the hyperparameter tuning. However they do take significant time to do, keep that it mind. In addition, the hard coded parameters are made from the results of the test. 

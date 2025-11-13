@@ -8,6 +8,7 @@ import pandas as pd
 from decision_tree import DecisionTreeClassifier
 from random_forest import RandomForestClassifier
 from itertools import product
+from classify import load_iot_dataset
 
 # --- Performance Metrics Helper ---
 
@@ -167,19 +168,26 @@ def plot_feature_importance(importance_dict, n_top=10, title="Top 10 Feature Imp
 # --- Main Execution ---
 
 if __name__ == "__main__":
-    print("--- Assignment 4: IoT Classification Starter Script ---")
-    print("Loading synthetic dataset to simulate IoT network data...")
-    
-    # Using a synthetic dataset to simulate the process, as the actual data is not available.
-    # The actual assignment would involve loading the processed data provided by the instructor.
-    X, y = make_classification(
-        n_samples=5000, 
-        n_features=20, 
-        n_informative=15, 
-        n_redundant=0, 
-        n_classes=8, # Simulating 8 different IoT device classes
-        random_state=42
+    print("--- Loading IoT Dataset ---")
+
+    DATA_ROOT = "./iot_data"   # path to folder containing the dataset files
+
+    X, y, label_encoder = load_iot_dataset(DATA_ROOT)
+
+    # Train/test split
+    X_train_full, X_test, y_train_full, y_test = train_test_split(
+        X, y, test_size=0.30, random_state=42, stratify=y
     )
+
+    # Validation split
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full, y_train_full, test_size=0.20,
+        random_state=42, stratify=y_train_full
+    )
+
+    print("Loaded classes:", len(label_encoder.classes_))
+    print("Training samples:", len(X_train))
+    print("Testing samples:", len(X_test))
     
     # Hyperparameter tuning can be done here if desired
     X_train_full, X_test, y_train_full, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
@@ -192,6 +200,7 @@ if __name__ == "__main__":
     
     # --- Model Configuration ---
     # These are set via hyperparameter tuning
+    """ Uncomment to perform hyperparameter tuning for Decision Tree
     dt_param_grid = {
         "max_depth": [5, 10, 15],
         "min_node": [2, 5, 10]}
@@ -202,16 +211,22 @@ if __name__ == "__main__":
         X_train, y_train,
         X_val, y_val,
         model_name="Decision Tree")
+    """
+
+    # Comment out if uncommenting tuning above
+    best_dt_params = {"max_depth": 10, "min_node": 5}
 
     # Random Forest search space
     n_features = X.shape[1]
 
+    """ Uncomment to perform hyperparameter tuning for Random Forest
     rf_param_grid = {
         "n_trees": [20, 50, 100],
         "data_frac": [0.6, 0.8],
         "feature_subcount": [int(np.sqrt(n_features)), n_features // 2],
         "max_depth": [10, 15, 20],
         "min_node": [2, 5, 10]}
+    
 
     best_rf_params, rf_history = tune_model(
         RandomForestClassifier,
@@ -219,6 +234,16 @@ if __name__ == "__main__":
         X_train, y_train,
         X_val, y_val,
         model_name="Random Forest")
+    """
+
+    # Comment out if uncommenting tuning above
+    best_rf_params = {
+        'n_trees': 100,
+        'data_frac': 0.6,
+        'feature_subcount': int(np.sqrt(n_features)),
+        'max_depth': 20,
+        'min_node': 2
+    }
 
     # --- 1. Decision Tree Experiment ---
     dt_classifier = DecisionTreeClassifier(**best_dt_params)
@@ -254,7 +279,7 @@ if __name__ == "__main__":
     # --- Plot Generation (Report Q2.b and Q1.b) ---
     
     # Confusion Matrix Plot (Report Q2.b)
-    labels = np.unique(y) # Class labels (0 to 7 in this synthetic example)
+    labels = label_encoder.classes_
     plot_confusion_matrix(rf_results['confusion_matrix'], labels=labels, title="RF Normalized Confusion Matrix (Report Q2.b)")
     
     # Feature Importance Plot (Report Q1.b)
@@ -272,7 +297,9 @@ if __name__ == "__main__":
     print("\nHint for Report Q2.d: Review 'confusion_matrix.png' for off-diagonal elements (misclassifications).")
     print("Use the IoT device names from 'list_of_devices.txt' (not provided) to explain WHY (e.g., two devices have similar traffic patterns).")
     
+    """ uncomment to generate hyperparameter impact plots
     plot_hyperparameter_impact(dt_history, "Decision Tree")
     plot_hyperparameter_impact(rf_history, "Random Forest")
+    """
 
     print("\nExecution complete. Check for the generated .png files for your report.")
