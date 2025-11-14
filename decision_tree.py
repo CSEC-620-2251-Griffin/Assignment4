@@ -252,6 +252,8 @@ class DecisionTreeClassifier:
         """
         # Clear previous feature importance map
         self.feature_importance = {i: 0.0 for i in range(X.shape[1])}
+        # precompute sorted unique feature values for potential optimizations
+        self.sorted_features = [np.sort(np.unique(X[:, i])) for i in range(X.shape[1])]
         self.root = self._build_tree(X, y)
 
 
